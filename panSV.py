@@ -36,7 +36,7 @@ def get_ecotypeDict(pathList):
 
 def find_coreNodes(GFAfile, ecotypeDict, coreNumber): 
 	#builds a set that contains all nodes meeting the current core requirements#
-	coreSet={}
+	coreSet=set([])
 	segmentDict=GFAfile.get_segmentDict()
 	for node in segmentDict:
 		if segmentDict[node].get_ecotypeNumber()>=coreNumber:
@@ -44,34 +44,59 @@ def find_coreNodes(GFAfile, ecotypeDict, coreNumber):
 	return coreSet
 
 
-def get_pathTraversals(GFAfile, coreSet):
+def get_pathTraversals(GFAfile, coreSet, coreNumber, ecotypeNumber):
 	#builds a list of all non-core sequences by traversing each path in a fasta format#
-	traversalList=[]
 	pathDict=GFAfile.get_pathDict()
 	segmentDict=GFAfile.get_segmentDict()
+	bubbleNumber=1
 	for pathName in pathDict:
 		pathList=GFAfile.get_path(pathName).get_pathList()
-		SVheader=[]
-		SVsequence=''
+		traversal=[]
+		leftAnchor=None
+		rightAnchor=None
+		existingBubble=None
 		for i in range(0,len(pathList)):
 			if pathList[i][:-1] in coreSet:
-				if SVheader:
-					traversalList.append('>'+pathName+':'+';'.join(SVheader))
-					traversalList.append(SVsequence)
-					SVheader=[]
-					SVsequence=''
+				if traversal:
+					rightAnchor=pathList[i]
+					if leftAnchor:
+						leftAnchor=segmentDict[leftAnchor[:-1]]
+					if rightAnchor:
+						rightAnchor=segmentDict[rightAnchor[:-1]]
+					bubble= GFAfile.has_bubble(traversal, leftAnchor, rightAnchor)
+					if bubble:
+						if bubble.get_leftAnchor()==leftAnchor and bubble.get_rightAnchor()==rightAnchor:
+							bubble.add_traversal(pathName, traversal)
+						else:
+							subBubble=bubble.find_subBubble('X', leftAnchor, rightAnchor, set(traversal), coreNumber)
+							if subBubble:
+#								print(subBubble.get_bubbleID())
+								subBubble.add_traversal(pathName, traversal)
+							else:
+								bubbleID=modify_bubbleID(bubble, coreNumber, ecotypeNumber)
+								subBubble=GFAfile.add_bubble(bubbleID, leftAnchor, rightAnchor, set(traversal), coreNumber)
+								bubble.add_subBubble(subBubble)
+								subBubble.add_traversal(pathName, traversal)
+					else:
+						bubbleNumber, bubbleID=get_bubbleID(bubbleNumber, coreNumber, ecotypeNumber)
+						bubble=GFAfile.add_bubble(bubbleID, leftAnchor, rightAnchor, set(traversal), coreNumber)
+						bubble.add_traversal(pathName, traversal)
+					traversal=[]
+				rightAnchor=None
+				leftAnchor=pathList[i]
 			else:
-				SVheader.append(pathList[i])
-				if pathList[i][-1]=='+':
-					SVsequence+=segmentDict[pathList[i][:-1]].get_sequence()
-				else:
-					SVsequence+=reverseComplement(segmentDict[pathList[i][:-1]].get_sequence())
-		if SVheader:
-			traversalList.append('>'+pathName+':'+';'.join(SVheader))
-			traversalList.append(SVsequence)
-	return traversalList
-
-
+				traversal.append(pathList[i])
+#		if traversal:
+#			traversalList.append('>'+pathName+':'+';'.join(SVheader))
+#			traversalList.append(SVsequence)
+	for bubble in GFAfile.get_bubbleList():
+		print('=======')
+		print(bubble)
+		print(bubble.get_bubbleID())
+		print(bubble.get_leftAnchor().get_id())
+		print(bubble.get_rightAnchor().get_id())
+		print(bubble.get_subBubbles())
+	return GFAfile
 
 def reverseComplement(sequence):
 	reverse=''
@@ -87,8 +112,19 @@ def reverseComplement(sequence):
 		else:
 			reverse+='N'
 	return reverse
-			
+
+
+def get_bubbleID(bubbleNumber, coreNumber, ecotypeNumber):
+	bubbleID=['0']*(ecotypeNumber-1)
+	bubbleID[0]=str(bubbleNumber)
+	bubbleNumber+=1
+	return bubbleNumber, '.'.join(bubbleID)
+
 		
+def modify_bubbleID(bubble, coreNumber, ecotypeNumber):
+	bubbleID=bubble.get_bubbleID().split('.')
+	bubbleID[ecotypeNumber-coreNumber]=str(len(bubble.get_subBubbles())+1)
+	return '.'.join(bubbleID)
 
 
 
@@ -116,7 +152,7 @@ for opt, arg in opts:
 GFAfile=gfaHandler(open_file(GFApath))
 print('Graph read')
 ecotypeDict=get_ecotypeDict(GFAfile.get_pathDict())
-coreNumber=len(ecotypeDict)
-coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
-traversalList=get_pathTraversals(GFAfile, coreSet)
-write_file(outPath, '\n'.join(traversalList))
+for coreNumber in range(len(ecotypeDict), 1, -1):
+	coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
+	traversalList=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
+#write_file(outPath, '\n'.join(traversalList))
