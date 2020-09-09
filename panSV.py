@@ -24,6 +24,7 @@ def write_file(outpath, output):
 
 def get_ecotypeDict(pathList):
 	#creates a dictionary of ecotypes by splitting the path name at _ #
+	#{ecotype=[pathName, ...]; ecotype=[...]; ...}#
 	#ecotype_pathID#
 	ecotypeDict={}
 	for path in pathList:
@@ -36,6 +37,7 @@ def get_ecotypeDict(pathList):
 
 def find_coreNodes(GFAfile, ecotypeDict, coreNumber): 
 	#builds a set that contains all nodes meeting the current core requirements#
+	#returns a set of string type nodeIDs#
 	coreSet=set([])
 	segmentDict=GFAfile.get_segmentDict()
 	for node in segmentDict:
@@ -45,7 +47,8 @@ def find_coreNodes(GFAfile, ecotypeDict, coreNumber):
 
 
 def get_pathTraversals(GFAfile, coreSet, coreNumber, ecotypeNumber):
-	#builds a list of all non-core sequences by traversing each path in a fasta format#
+	#builds a structure of all non-core bubbles and its traversals through the graph by traversing each path#
+	#A bubble contains all sequence containing traversals and can have subbubbles to describe variation in the traverals#
 	pathDict=GFAfile.get_pathDict()
 	segmentDict=GFAfile.get_segmentDict()
 	bubbleNumber=1
@@ -67,23 +70,11 @@ def get_pathTraversals(GFAfile, coreSet, coreNumber, ecotypeNumber):
 				traversal.append(pathList[i])
 		if traversal:
 			bubbleNumber, GFAfile=add_bubble(leftAnchor, None, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile)
-	for bubble in GFAfile.get_bubbleList():
-		print('=======')
-		print(bubble)
-		print(bubble.get_bubbleID())
-		if bubble.get_leftAnchor():
-			print(bubble.get_leftAnchor().get_id())
-		else:
-			print('None')
-		if bubble.get_rightAnchor():
-			print(bubble.get_rightAnchor().get_id())
-		else:
-			print('None')
-		print(bubble.get_subBubbles())
 	return GFAfile
 
 
 def add_bubble(leftAnchor, rightAnchor, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile):
+	#adds a new traversal to the structure. If neccessary a new bubble, or subbubble is created#
 	if is_novelTraversal(segmentDict, leftAnchor, rightAnchor, coreNumber):
 		if leftAnchor:
 			leftAnchor=segmentDict[leftAnchor[:-1]]
@@ -108,6 +99,41 @@ def add_bubble(leftAnchor, rightAnchor, traversal, pathName, segmentDict, coreNu
 			bubble.add_traversal(pathName, traversal)
 	return bubbleNumber, GFAfile
 
+
+def build_output(GFAfile):
+	#builds the fasta-like output file#
+	#>bubbleID_pathName_leftAnchor,[traversalNodes],rightAnchor#
+	#concatenated fasta sequence#
+	outFasta=[]
+	segmentDict=GFAfile.get_segmentDict()
+	bubbleList=GFAfile.get_bubbleList()
+	for bubble in bubbleList:
+		if bubble.get_leftAnchor():
+			leftAnchor=bubble.get_leftAnchor().get_id()
+		else:
+			leftAnchor='None'
+		if bubble.get_rightAnchor():
+			rightAnchor=bubble.get_rightAnchor().get_id()
+		else:
+			rightAnchor='None'
+		for traversal in bubble.get_traversalList():
+			traversalSequence=build_traversalSequence(traversal.get_segmentList(), segmentDict)
+			for path in traversal.get_pathList():
+				outFasta.append('>'+bubble.get_bubbleID()+'_'+path+':'+leftAnchor+','+','.join(traversal.get_segmentList())+','+rightAnchor)
+				outFasta.append(traversalSequence)
+	return outFasta
+
+
+def build_traversalSequence(traversalList, segmentDict):
+	traversalSequence=''
+	for segment in traversalList:
+		if segment[-1]=='+':
+			traversalSequence+=segmentDict[segment[:-1]].get_sequence()
+		elif segment[-1]=='-':
+			traversalSequence+=reverseComplement(segmentDict[segment[:-1]].get_sequence())
+	return traversalSequence
+
+
 def reverseComplement(sequence):
 	reverse=''
 	for base in sequence[::-1]:
@@ -125,6 +151,7 @@ def reverseComplement(sequence):
 
 
 def is_novelTraversal(segmentDict, leftAnchor, rightAnchor, coreNumber):
+	#checks if a traversal is a artefact with a higher core number that has already been added to the data#
 	novelTraversal=False
 	if leftAnchor:
 		if segmentDict[leftAnchor[:-1]].get_ecotypeNumber()==coreNumber:
@@ -136,6 +163,7 @@ def is_novelTraversal(segmentDict, leftAnchor, rightAnchor, coreNumber):
 
 
 def get_bubbleID(bubbleNumber, coreNumber, ecotypeNumber):
+	#builds a new bubbleID for a top-order superbubble#
 	bubbleID=['0']*(ecotypeNumber-1)
 	bubbleID[0]=str(bubbleNumber)
 	bubbleNumber+=1
@@ -143,6 +171,7 @@ def get_bubbleID(bubbleNumber, coreNumber, ecotypeNumber):
 
 		
 def modify_bubbleID(bubble, coreNumber, ecotypeNumber):
+	#creates a bubbleID for subbubbles by setting the correct position of the ID string to the number of current subbubbles of the parent bubble +1#
 	bubbleID=bubble.get_bubbleID().split('.')
 	bubbleID[ecotypeNumber-coreNumber]=str(len(bubble.get_subBubbles())+1)
 	return '.'.join(bubbleID)
@@ -173,8 +202,12 @@ for opt, arg in opts:
 GFAfile=gfaHandler(open_file(GFApath))
 print('Graph read')
 ecotypeDict=get_ecotypeDict(GFAfile.get_pathDict())
+print(str(len(ecotypeDict))+' different ecotypes detected')
+print('starting SV detection......')
 for coreNumber in range(len(ecotypeDict), 1, -1):
+	print('Current core number: '+str(coreNumber))	
 	coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
 	GFAfile=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
-#outFasta=build_output(GFAfile)
-#write_file(outPath, '\n'.join(traversalList))
+print('SV detection done! Constructing output file......')
+outFasta=build_output(GFAfile)
+write_file(outPath, '\n'.join(outFasta))
