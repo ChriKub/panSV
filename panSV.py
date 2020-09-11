@@ -62,25 +62,27 @@ def get_pathTraversals(GFAfile, coreSet, coreNumber, ecotypeNumber):
 			if pathList[i][:-1] in coreSet:
 				if traversal:
 					rightAnchor=pathList[i]
-					bubbleNumber, GFAfile=add_bubble(leftAnchor, rightAnchor, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile)
+					bubbleSet=get_traversed_bubbles(traversal, segmentDict)
+					bubbleNumber, GFAfile=create_bubble(leftAnchor, rightAnchor, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
 					traversal=[]
 				rightAnchor=None
 				leftAnchor=pathList[i]
 			else:
 				traversal.append(pathList[i])
 		if traversal:
-			bubbleNumber, GFAfile=add_bubble(leftAnchor, None, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile)
+			bubbleSet=get_traversed_bubbles(traversal, segmentDict)
+			bubbleNumber, GFAfile=create_bubble(leftAnchor, None, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
 	return GFAfile
 
 
-def add_bubble(leftAnchor, rightAnchor, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile):
+def create_bubble(leftAnchor, rightAnchor, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet):
 	#adds a new traversal to the structure. If neccessary a new bubble, or subbubble is created#
 	if is_novelTraversal(segmentDict, leftAnchor, rightAnchor, coreNumber):
 		if leftAnchor:
 			leftAnchor=segmentDict[leftAnchor[:-1]]
 		if rightAnchor:
 			rightAnchor=segmentDict[rightAnchor[:-1]]
-		bubble=GFAfile.has_bubble(traversal, leftAnchor, rightAnchor)
+		bubble=find_bubble(set(traversal), leftAnchor, rightAnchor, bubbleSet)
 		if bubble:
 			if bubble.get_leftAnchor()==leftAnchor and bubble.get_rightAnchor()==rightAnchor:
 				bubble.add_traversal(pathName, traversal)
@@ -93,11 +95,41 @@ def add_bubble(leftAnchor, rightAnchor, traversal, pathName, segmentDict, coreNu
 					subBubble=GFAfile.add_bubble(bubbleID, leftAnchor, rightAnchor, set(traversal), coreNumber)
 					bubble.add_subBubble(subBubble)
 					subBubble.add_traversal(pathName, traversal)
+					add_bubble(subBubble, traversal, segmentDict)
 		else:
 			bubbleNumber, bubbleID=get_bubbleID(bubbleNumber, coreNumber, ecotypeNumber)
 			bubble=GFAfile.add_bubble(bubbleID, leftAnchor, rightAnchor, set(traversal), coreNumber)
 			bubble.add_traversal(pathName, traversal)
+			add_bubble(bubble, traversal, segmentDict)
 	return bubbleNumber, GFAfile
+
+
+def find_bubble(segmentSet, leftAnchor, rightAnchor, bubbleSet):
+	correctBubble=False
+	for bubble in bubbleSet:
+		if segmentSet.issubset(bubble.get_segmentSet()):
+			if correctBubble:
+				if len(correctBubble.get_segmentSet())>len(bubble.get_segmentSet()):
+					correctBubble=bubble
+			else:
+				correctBubble=bubble
+		elif leftAnchor==bubble.get_leftAnchor() and rightAnchor==bubble.get_rightAnchor():
+			correctBubble=bubble
+			break
+	return correctBubble
+
+
+def add_bubble(bubble, traversal, segmentDict):
+	for segment in traversal:
+		segmentDict[segment[:-1]].add_bubble(bubble)
+	return None
+
+
+def get_traversed_bubbles(traversal, segmentDict):
+	bubbleSet=set([])
+	for segment in traversal:
+		bubbleSet.update(segmentDict[segment[:-1]].get_bubbleList())
+	return bubbleSet
 
 
 def build_output(GFAfile):
