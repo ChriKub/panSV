@@ -28,5 +28,5 @@ Install: python setup.py install
   * naming: 1.0.0.0.1 
   * increment bubble, or subbubble number based on core size step and number of existing subbubles in this step
     * Fasta header (identified by anchor)
-	>1.1.0.0.0.1_AT1741_Chr1:a1,nodeID+,..,..,a2
+	>1.1.0.0.0.1_AT1741_Chr1|startPosition:stopPosition|a1,nodeID+,..,..,a2
 
