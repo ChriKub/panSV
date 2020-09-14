@@ -209,6 +209,56 @@ def modify_bubbleID(bubble, coreNumber, ecotypeNumber):
 	return '.'.join(bubbleID)
 
 
+def get_outStats(GFAfile):
+	outStats=['\t'.join(['bubbleID', 'coreNumber', 'subBubbles', 'sequence', 'minLen', 'maxLen', 'avgLen', 'traversals', 'pathTraversals'])]
+	bubbleList=GFAfile.get_bubbleList()
+	for bubble in bubbleList:
+		bubbleID=bubble.get_bubbleID()
+		coreNumber=bubble.get_coreNumber()
+		subBubbles=str(len(bubble.get_subBubbles()))
+		sequence=str(get_bubbleSequence(bubble, GFAfile))
+		minLen, maxLen, avgLen=get_traversalLengths(bubble.get_traversalList(), GFAfile)
+		traversals=str(len(bubble.get_traversalList()))
+		pathTraversals=str(get_pathTraversalNumber(bubble.get_traversalList()))
+		outStats.append('\t'.join([bubbleID, coreNumber, subBubbles, sequence, str(minLen), str(maxLen), str(avgLen), traversals, pathTraversals]))
+	return outStats
+
+
+def get_pathTraversalNumber(traversalList):
+	pathTraversals=0
+	for traversal in traversalList:
+		pathTraversals+=len(traversal.get_pathList())
+	return pathTraversals
+
+
+def get_bubbleSequence(bubble, GFAfile):
+	bubbleSequence=0
+	for segment in bubble.get_segmentSet():
+		bubbleSequence=GFAfile.get_segment(segment[:-1]).get_sequence_length()
+	return bubbleSequence
+
+
+def get_traversalLengths(traversalList, GFAfile):
+	minLen=None
+	maxLen=0
+	avgLen=0
+	combLen=0
+	for traversal in traversalList:
+		traversalLength=0
+		for segment in traversal.get_segmentList():
+			segmentLength=GFAfile.get_segment(segment[:-1]).get_sequence_length()
+			traversalLength+=segmentLength
+		combLen+=traversalLength
+		if minLen:
+			if traversalLength<minLen:
+				minLen=traversalLength
+		else:
+			minLen=traversalLength
+		if traversalLength>maxLen:
+			maxLen=traversalLength
+	avgLen=combLen/float(len(traversalList))		
+	return minLen, maxLen, avgLen
+
 
 help=""" 
 -h		Prints help message 
@@ -240,6 +290,8 @@ for coreNumber in range(len(ecotypeDict), 1, -1):
 	print('Current core number: '+str(coreNumber))	
 	coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
 	GFAfile=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
-print('SV detection done! Constructing output file......')
+print('SV detection done! Constructing output files......')
 outFasta=build_output(GFAfile)
+outStats=get_outStats(GFAfile)
 write_file(outPath, '\n'.join(outFasta))
+write_file(outPath+'.stats', '\n'.join(outStats))
