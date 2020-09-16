@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 
-
 import sys
 import getopt
 from gfa import gfaHandler
-
-from datetime import datetime
 
 
 def open_file(inpath):
@@ -239,7 +236,7 @@ def get_pathTraversalNumber(traversalList):
 def get_bubbleSequence(bubble, GFAfile):
 	bubbleSequence=0
 	for segment in bubble.get_segmentSet():
-		bubbleSequence=GFAfile.get_segment(segment[:-1]).get_sequence_length()
+		bubbleSequence+=GFAfile.get_segment(segment[:-1]).get_sequence_length()
 	return bubbleSequence
 
 
