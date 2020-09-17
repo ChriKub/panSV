@@ -139,6 +139,7 @@ def build_output(GFAfile):
 	#>bubbleID_pathName_leftAnchor,[traversalNodes],rightAnchor#
 	#concatenated fasta sequence#
 	outFasta=[]
+	outBED=[]
 	segmentDict=GFAfile.get_segmentDict()
 	bubbleList=GFAfile.get_bubbleList()
 	for bubble in bubbleList:
@@ -153,9 +154,10 @@ def build_output(GFAfile):
 		for traversal in bubble.get_traversalList():
 			traversalSequence=build_traversalSequence(traversal.get_segmentList(), segmentDict)
 			for path in traversal.get_pathList():
+				outBED.append('\t'.join([path[0], str(path[1]), str(path[2]), bubble.get_bubbleID(), str(bubble.get_coreNumber())]))
 				outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+','.join(traversal.get_segmentList())+','+rightAnchor)
 				outFasta.append(traversalSequence)
-	return outFasta
+	return outFasta, outBED
 
 
 def build_traversalSequence(traversalList, segmentDict):
@@ -293,7 +295,8 @@ for coreNumber in range(len(ecotypeDict), 1, -1):
 	coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
 	GFAfile=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
 print('SV detection done! Constructing output files......')
-outFasta=build_output(GFAfile)
+outFasta, outBED=build_output(GFAfile)
 outStats=get_outStats(GFAfile)
-write_file(outPath, '\n'.join(outFasta))
+write_file(outPath+'.fasta', '\n'.join(outFasta))
+write_file(outPath+'.bed', '\n'.join(outBED))
 write_file(outPath+'.stats', '\n'.join(outStats))
