@@ -134,6 +134,22 @@ def get_traversed_bubbles(traversal, segmentDict):
 	return bubbleSet
 
 
+def getPAVtraversals(GFAfile):
+	pathDict=GFAfile.get_pathDict()
+	for pathName in pathDict:
+		pathList=GFAfile.get_path(pathName).get_pathList()
+		pathPosition=0
+		for i in range(1,len(pathList)):
+			if GFAfile.get_segment(pathList[i][:-1]).get_rightAnchor():
+				for bubble in GFAfile.get_segment(pathList[i-1][:-1]).get_leftAnchor():
+					if bubble in GFAfile.get_segment(pathList[i-1][:-1]).get_leftAnchor():
+						leftPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
+						rightPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()+1
+						bubble.add_traversal(pathName, 'PAV', leftPosition, rightPosition)
+			pathPosition+=GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
+	return GFAfile
+
+
 def build_output(GFAfile):
 	#builds the fasta-like output file#
 	#>bubbleID_pathName_leftAnchor,[traversalNodes],rightAnchor#
@@ -152,7 +168,10 @@ def build_output(GFAfile):
 		else:
 			rightAnchor='None'
 		for traversal in bubble.get_traversalList():
-			traversalSequence=build_traversalSequence(traversal.get_segmentList(), segmentDict)
+			if isinstance(traversal.get_segmentList(), list) or isinstance(traversal.get_segmentList(), set):
+				traversalSequence=build_traversalSequence(traversal.get_segmentList(), segmentDict)
+			else:
+				traversalSequence=traversal.get_segmentList()
 			for path in traversal.get_pathList():
 				outBED.append('\t'.join([path[0], str(path[1]), str(path[2]), bubble.get_bubbleID(), str(bubble.get_coreNumber())]))
 				outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+','.join(traversal.get_segmentList())+','+rightAnchor)
@@ -249,9 +268,12 @@ def get_traversalLengths(traversalList, GFAfile):
 	combLen=0
 	for traversal in traversalList:
 		traversalLength=0
-		for segment in traversal.get_segmentList():
-			segmentLength=GFAfile.get_segment(segment[:-1]).get_sequence_length()
-			traversalLength+=segmentLength
+		if isinstance(traversal.get_segmentList(), list) or isinstance(traversal.get_segmentList(), set):
+			for segment in traversal.get_segmentList():
+				segmentLength=GFAfile.get_segment(segment[:-1]).get_sequence_length()
+				traversalLength+=segmentLength
+		else:
+			traversalLength=0
 		combLen+=traversalLength
 		if minLen:
 			if traversalLength<minLen:
@@ -294,6 +316,8 @@ for coreNumber in range(len(ecotypeDict), 1, -1):
 	print('Current core number: '+str(coreNumber))	
 	coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
 	GFAfile=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
+print('Detecting PAV traversals...')
+GFAfile=getPAVtraversals(GFAfile)
 print('SV detection done! Constructing output files......')
 outFasta, outBED=build_output(GFAfile)
 outStats=get_outStats(GFAfile)
