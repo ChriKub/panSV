@@ -146,6 +146,7 @@ def getPAVtraversals(GFAfile):
 						leftPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()+1
 						rightPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()+1
 						bubble.add_traversal(pathName, 'PAV', leftPosition, rightPosition)
+						break
 			pathPosition+=GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
 	return GFAfile
 
@@ -174,7 +175,10 @@ def build_output(GFAfile):
 				traversalSequence=traversal.get_segmentList()
 			for path in traversal.get_pathList():
 				outBED.append('\t'.join([path[0], str(path[1]), str(path[2]), bubble.get_bubbleID(), str(bubble.get_coreNumber())]))
-				outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+','.join(traversal.get_segmentList())+','+rightAnchor)
+				if isinstance(traversal.get_segmentList(), list) or isinstance(traversal.get_segmentList(), set):
+					outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+','.join(traversal.get_segmentList())+','+rightAnchor)
+				else:
+					outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+rightAnchor)
 				outFasta.append(traversalSequence)
 	return outFasta, outBED
 
