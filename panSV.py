@@ -63,7 +63,7 @@ def get_pathTraversals(GFAfile, coreSet, coreNumber, ecotypeNumber):
 					rightAnchor=pathList[i]
 					rightPosition=pathPosition
 					bubbleSet=get_traversed_bubbles(traversal, segmentDict)
-					bubbleNumber, GFAfile=create_bubble(leftAnchor, leftPosition, rightAnchor, rightPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
+					bubbleNumber, GFAfile=create_bubble(leftAnchor, leftPosition+1, rightAnchor, rightPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
 					traversal=[]
 				rightAnchor=None
 				leftAnchor=pathList[i]
@@ -73,7 +73,7 @@ def get_pathTraversals(GFAfile, coreSet, coreNumber, ecotypeNumber):
 			pathPosition+=GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
 		if traversal:
 			bubbleSet=get_traversed_bubbles(traversal, segmentDict)
-			bubbleNumber, GFAfile=create_bubble(leftAnchor, leftPosition, None, pathPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
+			bubbleNumber, GFAfile=create_bubble(leftAnchor, leftPosition+1, None, pathPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
 	return GFAfile
 
 
@@ -143,7 +143,7 @@ def getPAVtraversals(GFAfile):
 			if GFAfile.get_segment(pathList[i][:-1]).get_rightAnchor():
 				for bubble in GFAfile.get_segment(pathList[i-1][:-1]).get_leftAnchor():
 					if bubble in GFAfile.get_segment(pathList[i-1][:-1]).get_leftAnchor():
-						leftPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
+						leftPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()+1
 						rightPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()+1
 						bubble.add_traversal(pathName, 'PAV', leftPosition, rightPosition)
 			pathPosition+=GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
