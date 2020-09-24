@@ -2,6 +2,7 @@
 
 import sys
 import getopt
+import argparse
 from gfa import gfaHandler
 
 
@@ -289,42 +290,31 @@ def get_traversalLengths(traversalList, GFAfile):
 	avgLen=combLen/float(len(traversalList))		
 	return minLen, maxLen, avgLen
 
+if __name__ == "__main__":
+	parser = argparse.ArgumentParser(description = "PanSV: Pan-genome SV detection algorithm by C. Kubica")
+	parser.add_argument("-g", "--gfa", help="gfa file", required=True)
+	parser.add_argument("-o", "--output", help="Base path and name for the generated output file ", required=True)
+	args = parser.parse_args();
 
-help=""" 
--h		Prints help message 
--g <GFAfile>	gfa file 
--o <Filepath>	Base path and name for the generated output file 
-"""
-
-try:
-	opts, args = getopt.getopt(sys.argv[1:],'hg:r:c:o:',['GFApath=', 'outPath='])
-except getopt.GetoptError:
-	print(help)
-	sys.exit(2)
-for opt, arg in opts:
-	if opt == '-h':
-		print(help)
-		sys.exit()
-	elif opt in ('-g'):
-		GFApath=arg
-	elif opt in ('-o'):
-		outPath=arg
+	GFApath = args.gfa
+	outPath = args.output
 
 
-GFAfile=gfaHandler(open_file(GFApath))
-print('Graph read')
-ecotypeDict=get_ecotypeDict(GFAfile.get_pathDict())
-print(str(len(ecotypeDict))+' different ecotypes detected')
-print('starting SV detection......')
-for coreNumber in range(len(ecotypeDict), 1, -1):
-	print('Current core number: '+str(coreNumber))	
-	coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
-	GFAfile=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
-print('Detecting PAV traversals...')
-GFAfile=getPAVtraversals(GFAfile)
-print('SV detection done! Constructing output files......')
-outFasta, outBED=build_output(GFAfile)
-outStats=get_outStats(GFAfile)
-write_file(outPath+'.fasta', '\n'.join(outFasta))
-write_file(outPath+'.bed', '\n'.join(outBED))
-write_file(outPath+'.stats', '\n'.join(outStats))
+
+	GFAfile=gfaHandler(open_file(GFApath))
+	print('Graph read')
+	ecotypeDict=get_ecotypeDict(GFAfile.get_pathDict())
+	print(str(len(ecotypeDict))+' different ecotypes detected')
+	print('starting SV detection......')
+	for coreNumber in range(len(ecotypeDict), 1, -1):
+		print('Current core number: '+str(coreNumber))
+		coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
+		GFAfile=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
+	print('Detecting PAV traversals...')
+	GFAfile=getPAVtraversals(GFAfile)
+	print('SV detection done! Constructing output files......')
+	outFasta, outBED=build_output(GFAfile)
+	outStats=get_outStats(GFAfile)
+	write_file(outPath+'.fasta', '\n'.join(outFasta))
+	write_file(outPath+'.bed', '\n'.join(outBED))
+	write_file(outPath+'.stats', '\n'.join(outStats))
