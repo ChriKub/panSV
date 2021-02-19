@@ -49,7 +49,7 @@ def get_pathTraversals(GFAfile, coreSet, coreNumber, ecotypeNumber):
 	#A bubble contains all sequence containing traversals and can have subbubbles to describe variation in the traverals#
 	pathDict=GFAfile.get_pathDict()
 	segmentDict=GFAfile.get_segmentDict()
-	bubbleNumber=1
+	bubbleNumber=2
 	for pathName in pathDict:
 		pathList=GFAfile.get_path(pathName).get_pathList()
 		traversal=[]
@@ -89,10 +89,12 @@ def create_bubble(leftAnchor, leftPosition, rightAnchor, rightPosition, traversa
 		if bubble:
 			if bubble.get_leftAnchor()==leftAnchor and bubble.get_rightAnchor()==rightAnchor:
 				bubble.add_traversal(pathName, traversal, leftPosition, rightPosition)
+				add_bubble(bubble, traversal, segmentDict)
 			else:
 				subBubble=bubble.find_subBubble('X', leftAnchor, rightAnchor, set(traversal), coreNumber)
 				if subBubble:
 					subBubble.add_traversal(pathName, traversal, leftPosition, rightPosition)
+					add_bubble(subBubble, traversal, segmentDict)
 				else:
 					bubbleID=modify_bubbleID(bubble, coreNumber, ecotypeNumber)
 					subBubble=GFAfile.add_bubble(bubbleID, leftAnchor, rightAnchor, set(traversal), coreNumber)
@@ -227,7 +229,7 @@ def is_novelTraversal(segmentDict, leftAnchor, rightAnchor, coreNumber):
 def get_bubbleID(bubbleNumber, coreNumber, ecotypeNumber):
 	#builds a new bubbleID for a top-order superbubble#
 	bubbleID=['0']*(ecotypeNumber-1)
-	bubbleID[0]=str(bubbleNumber)
+	bubbleID[ecotypeNumber-coreNumber]=str(bubbleNumber)
 	bubbleNumber+=1
 	return bubbleNumber, '.'.join(bubbleID)
 
