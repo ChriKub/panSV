@@ -240,9 +240,51 @@ def modify_bubbleID(bubble, coreNumber, ecotypeNumber):
 	bubbleID[ecotypeNumber-coreNumber]=str(len(bubble.get_subBubbles())+1)
 	return '.'.join(bubbleID)
 
+def find_siblings(GFAfile):
+	bubbleList=GFAfile.get_bubbleList()
+	siblingDict={}
+	for bubble in bubbleList:
+		siblings=[]
+		for compareBubble in bubbleList:
+			if bubble!=compareBubble:
+				if not related_bubbles(bubble.get_bubbleID(), compareBubble.get_bubbleID()):
+					if len(set.intersection(bubble.get_segmentSet(), compareBubble.get_segmentSet()))>0:
+						siblings.append(compareBubble)
+#						siblings.append(compareBubble.get_bubbleID())
+		siblingDict[bubble]=list(set(siblings))
+#		siblingDict[bubble.get_bubbleID()]=list(set(siblings))
+	return siblingDict
 
-def get_outStats(GFAfile):
-	outStats=['\t'.join(['bubbleID', 'coreNumber', 'subBubbles', 'sequence', 'minLen', 'maxLen', 'avgLen', 'traversals', 'pathTraversals'])]
+
+def related_bubbles(bubbleID, compareBubbleID):
+	related=False
+	bubbleIDList=bubbleID.split('.')
+	compareBubbleIDList=compareBubbleID.split('.')
+	for i in range(len(bubbleIDList)):
+		if bubbleIDList[i]!="0" or compareBubbleIDList[i]!="0":
+			if bubbleIDList[i]==compareBubbleIDList[i]:
+				related=True
+			break
+	return related
+
+
+def get_outSiblings(siblingDict):
+	outSiblings=['/t'.join(['bubbleID', 'siblingBubbles'])]
+	for bubble in siblingDict:
+		siblingIDs=get_siblingIDs(siblingDict[bubble])		
+		outSiblings.append('\t'.join([bubble.get_bubbleID(), ';'.join(siblingIDs)]))
+		siblingDict[bubble]=siblingIDs
+	return outSiblings, siblingDict
+
+def get_siblingIDs(siblingList):
+	siblingIDs=[]
+	for sibling in siblingList:
+		siblingIDs.append(sibling.get_bubbleID())
+	return siblingIDs
+
+
+def get_outStats(GFAfile, siblingDict):
+	outStats=['\t'.join(['bubbleID', 'coreNumber', 'subBubbles', 'sequence', 'minLen', 'maxLen', 'avgLen', 'traversals', 'pathTraversals', 'siblings'])]
 	bubbleList=GFAfile.get_bubbleList()
 	for bubble in bubbleList:
 		bubbleID=bubble.get_bubbleID()
@@ -252,7 +294,8 @@ def get_outStats(GFAfile):
 		minLen, maxLen, avgLen=get_traversalLengths(bubble.get_traversalList(), GFAfile)
 		traversals=str(len(bubble.get_traversalList()))
 		pathTraversals=str(get_pathTraversalNumber(bubble.get_traversalList()))
-		outStats.append('\t'.join([bubbleID, coreNumber, subBubbles, sequence, str(minLen), str(maxLen), str(avgLen), traversals, pathTraversals]))
+		siblings=len(siblingDict[bubble])
+		outStats.append('\t'.join([bubbleID, coreNumber, subBubbles, sequence, str(minLen), str(maxLen), str(avgLen), traversals, pathTraversals, str(siblings)]))
 	return outStats
 
 
@@ -316,9 +359,13 @@ if __name__ == "__main__":
 		GFAfile=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
 	print('Detecting PAV traversals...')
 	GFAfile=getPAVtraversals(GFAfile)
+	print('Searching for bubble siblings')
+	siblingDict=find_siblings(GFAfile)
 	print('SV detection done! Constructing output files......')
 	outFasta, outBED=build_output(GFAfile)
-	outStats=get_outStats(GFAfile)
+	outSiblings, siblingDict=get_outSiblings(siblingDict)
+	outStats=get_outStats(GFAfile, siblingDict)
 	write_file(outPath+'.fasta', '\n'.join(outFasta))
 	write_file(outPath+'.bed', '\n'.join(outBED))
 	write_file(outPath+'.stats', '\n'.join(outStats))
+	write_file(outPath+'.siblings', '\n'.join(outSiblings))
