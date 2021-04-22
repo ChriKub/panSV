@@ -33,49 +33,84 @@ def get_ecotypeDict(pathList):
 	return ecotypeDict
 
 
-def find_coreNodes(GFAfile, ecotypeDict, coreNumber): 
-	#builds a set that contains all nodes meeting the current core requirements#
-	#returns a set of string type nodeIDs#
-	coreSet=set([])
-	segmentDict=GFAfile.get_segmentDict()
-	for node in segmentDict:
-		if segmentDict[node].get_ecotypeNumber()>=coreNumber:
-			coreSet.add(node)
-	return coreSet
-
-
-def get_pathTraversals(GFAfile, coreSet, coreNumber, ecotypeNumber):
+def get_pathTraversals(GFAfile, ecotypeNumber):
 	#builds a structure of all non-core bubbles and its traversals through the graph by traversing each path#
 	#A bubble contains all sequence containing traversals and can have subbubbles to describe variation in the traverals#
 	pathDict=GFAfile.get_pathDict()
 	segmentDict=GFAfile.get_segmentDict()
-	bubbleNumber=2
 	for pathName in pathDict:
+		print('#########################')
+		openTraversalDict=initializeTraversalDict(ecotypeNumber)
+		closedTraversalDict=initializeTraversalDict(ecotypeNumber)
 		pathList=GFAfile.get_path(pathName).get_pathList()
-		traversal=[]
 		leftAnchor=None
-		leftPosition=0
 		rightAnchor=None
-		existingBubble=None
 		pathPosition=0
-		for i in range(0,len(pathList)):
-			if pathList[i][:-1] in coreSet:
-				if traversal:
-					rightAnchor=pathList[i]
-					rightPosition=pathPosition
-					bubbleSet=get_traversed_bubbles(traversal, segmentDict)
-					bubbleNumber, GFAfile=create_bubble(leftAnchor, leftPosition, rightAnchor, rightPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
-					traversal=[]
-				rightAnchor=None
-				leftAnchor=pathList[i]
-				leftPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
+		if segmentDict[pathList[0][:-1]].get_ecotypeNumber()!=ecotypeNumber:
+			openTraversalDict[ecotypeNumber]=[None, None, 0, None, []]
+		print(openTraversalDict)
+		for i in range(0,len(pathList)-1):
+			if segmentDict[pathList[i][:-1]].get_ecotypeNumber()!=segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
+				if segmentDict[pathList[i][:-1]].get_ecotypeNumber()<segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
+					openTraversalDict=add_segment(openTraversalDict, pathList[i])
+					# close all bubbles of lower degree #
+					openTraversalDict, closedTraversalDict=closeTraversal(openTraversalDict, segmentDict[pathList[i+1][:-1]], pathPosition, closedTraversalDict, ecotypeNUmber)
+				elif segmentDict[pathList[i][:-1]].get_ecotypeNumber()>segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
+					openTraversalDict=add_segment(openTraversalDict, pathList[i])
+					# open new bubble #
+					openTraversalDict[segmentDict[pathList[i][:-1]].get_ecotypeNumber()]=[segmentDict[pathList[i][:-1]], None, pathPosition, None, []]
 			else:
-				traversal.append(pathList[i])
-			pathPosition+=GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
-		if traversal:
-			bubbleSet=get_traversed_bubbles(traversal, segmentDict)
-			bubbleNumber, GFAfile=create_bubble(leftAnchor, leftPosition, None, pathPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
+				if i!=0:
+					# add node to all open bubbles #
+					openTraversalDict=add_segment(bubbleDict, pathList[i])
+		openTraversalDict, closedTraversalDict=closeTraversal(openTraversalDict, segmentDict[pathList[i+1][:-1]], pathPosition, closedTraversalDict, ecotypeNumber)
+		print(closedTraversalDict)
+#			print(openTraversalDict)
+#			if pathList[i][:-1] in coreSet:
+#				if traversal:
+#					rightAnchor=pathList[i]
+#					rightPosition=pathPosition
+#					bubbleSet=get_traversed_bubbles(traversal, segmentDict)
+#					bubbleNumber, GFAfile=create_bubble(leftAnchor, leftPosition, rightAnchor, rightPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
+#					traversal=[]
+#				rightAnchor=None
+#				leftAnchor=pathList[i]
+#				leftPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
+#			else:
+#				traversal.append(pathList[i])
+#			pathPosition+=GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
+#		if traversal:
+#			bubbleSet=get_traversed_bubbles(traversal, segmentDict)
+#			bubbleNumber, GFAfile=create_bubble(leftAnchor, leftPosition, None, pathPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet)
 	return GFAfile
+
+
+def initializeTraversalDict(ecotypeNumber):
+	#{coreLevel=[leftAnchor, rightAnchor, startPosition, stopPosition, segmentList],..}
+	traversalDict={}
+	for i in range(2, ecotypeNumber):
+		traversalDict[i]=[]
+	traversalDict[ecotypeNumber]=[]
+	return traversalDict
+
+
+def add_segment(traversalDict, segment):
+	for coreLevel in traversalDict:
+		if traversalDict[coreLevel]:
+			traversalDict[coreLevel][4].append(segment)
+	return traversalDict
+
+
+def closeTraversal(traversalDict, segmentObject, pathPosition, closedTraversalDict, ecotypeNumber):
+	for coreLevel in traversalDict:
+		if coreLevel<=segmentObject.get_ecotypeNumber():
+			if traversalDict[coreLevel]:
+				traversalDict[coreLevel][1]=segmentObject
+				traversalDict[coreLevel][3]=pathPosition
+				closedTraversalDict[coreLevel].append(traversalDict[coreLevel])
+				traversalDict[coreLevel]=[]
+				if segmentObject.get_ecotypeNumber()==ecotypeNumber
+	return traversalDict, closedTraversalDict
 
 
 def create_bubble(leftAnchor, leftPosition, rightAnchor, rightPosition, traversal, pathName, segmentDict, coreNumber, ecotypeNumber, bubbleNumber, GFAfile, bubbleSet):
@@ -310,15 +345,15 @@ if __name__ == "__main__":
 	ecotypeDict=get_ecotypeDict(GFAfile.get_pathDict())
 	print(str(len(ecotypeDict))+' different ecotypes detected')
 	print('starting SV detection......')
-	for coreNumber in range(len(ecotypeDict), 1, -1):
-		print('Current core number: '+str(coreNumber))
-		coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
-		GFAfile=get_pathTraversals(GFAfile, coreSet, coreNumber, len(ecotypeDict))
+#	for coreNumber in range(len(ecotypeDict), 1, -1):
+#		print('Current core number: '+str(coreNumber))
+#		coreSet=find_coreNodes(GFAfile, ecotypeDict, coreNumber)
+	GFAfile=get_pathTraversals(GFAfile, len(ecotypeDict))
 	print('Detecting PAV traversals...')
 	GFAfile=getPAVtraversals(GFAfile)
-	print('SV detection done! Constructing output files......')
-	outFasta, outBED=build_output(GFAfile)
-	outStats=get_outStats(GFAfile)
-	write_file(outPath+'.fasta', '\n'.join(outFasta))
-	write_file(outPath+'.bed', '\n'.join(outBED))
-	write_file(outPath+'.stats', '\n'.join(outStats))
+#	print('SV detection done! Constructing output files......')
+#	outFasta, outBED=build_output(GFAfile)
+#	outStats=get_outStats(GFAfile)
+#	write_file(outPath+'.fasta', '\n'.join(outFasta))
+#	write_file(outPath+'.bed', '\n'.join(outBED))
+#	write_file(outPath+'.stats', '\n'.join(outStats))
