@@ -87,8 +87,6 @@ def add_segment(traversalDict, segment):
 
 
 def closeTraversal(traversalDict, segmentObject, pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName):
-	print(traversalDict)
-	print(segmentObject)
 	for coreLevel in traversalDict:
 		if coreLevel<=segmentObject.get_ecotypeNumber():
 			if traversalDict[coreLevel]:
@@ -161,12 +159,12 @@ def nameBubbles(GFAfile, ecotypeNumber):
 	nameList=[0]*(ecotypeNumber-1)
 	for bubble in bubbleDict[str(ecotypeNumber)]:
 		nameList=bubble.set_bubbleID(nameList)
+		add_bubble(bubble, bubble.get_segmentSet(), GFAfile.get_segmentDict())
 	return GFAfile
 
 
-### add functionality!!! ###
-def add_bubble(bubble, traversal, segmentDict):
-	for segment in traversal:
+def add_bubble(bubble, segmentSet, segmentDict):
+	for segment in segmentSet:
 		segmentDict[segment[:-1]].add_bubble(bubble)
 	return None
 
