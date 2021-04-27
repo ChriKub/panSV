@@ -158,7 +158,8 @@ def nameBubbles(GFAfile, ecotypeNumber):
 	bubbleDict=GFAfile.get_bubbleDict()
 	nameList=[0]*(ecotypeNumber-1)
 	for bubble in bubbleDict[str(ecotypeNumber)]:
-		nameList=bubble.set_bubbleID(nameList)
+		nameList[0]+=1
+		bubble.set_bubbleID(nameList)
 		add_bubble(bubble, bubble.get_segmentSet(), GFAfile.get_segmentDict())
 	return GFAfile
 
@@ -169,13 +170,6 @@ def add_bubble(bubble, segmentSet, segmentDict):
 	return None
 
 
-def get_traversed_bubbles(traversal, segmentDict):
-	bubbleSet=set([])
-	for segment in traversal:
-		bubbleSet.update(segmentDict[segment[:-1]].get_bubbleList())
-	return bubbleSet
-
-
 def getPAVtraversals(GFAfile):
 	pathDict=GFAfile.get_pathDict()
 	for pathName in pathDict:
@@ -183,17 +177,32 @@ def getPAVtraversals(GFAfile):
 		pathPosition=0
 		for i in range(0,len(pathList)):
 			if GFAfile.get_segment(pathList[i][:-1]).get_rightAnchor():
-#				for bubble in GFAfile.get_segment(pathList[i-1][:-1]).get_leftAnchor():
 				for bubble in GFAfile.get_segment(pathList[i][:-1]).get_rightAnchor():
 					if bubble in GFAfile.get_segment(pathList[i-1][:-1]).get_leftAnchor():
 						leftPosition=pathPosition
 						rightPosition=pathPosition+1
-#						leftPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()+1
-#						rightPosition=pathPosition+GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()+1
 						bubble.add_traversal(pathName, 'PAV', leftPosition, rightPosition)
 						break
 			pathPosition+=GFAfile.get_segment(pathList[i][:-1]).get_sequence_length()
 	return GFAfile
+
+
+def find_siblings(segmentDict):
+	siblingDict={}
+	for segment in segmentDict:
+		if len(segmentDict[segment].get_bubbleList())>1:
+			for bubble in segmentDict[segment].get_bubbleList():
+				siblingDict=add_sibling(siblingDict, bubble, segmentDict[segment].get_bubbleList())
+	return siblingDict
+
+
+def add_sibling(siblingDict, bubble, bubbleList):
+	if not bubble.get_bubbleID() in siblingDict:
+		siblingDict[bubble.get_bubbleID()]=set([])
+	for siblingBubble in bubbleList:
+		if siblingBubble!=bubble:
+			siblingDict[bubble.get_bubbleID()].add(siblingBubble.get_bubbleID())
+	return siblingDict
 
 
 def build_output(GFAfile):
@@ -281,8 +290,8 @@ def modify_bubbleID(bubble, coreNumber, ecotypeNumber):
 	return '.'.join(bubbleID)
 
 
-def get_outStats(GFAfile):
-	outStats=['\t'.join(['bubbleID', 'coreNumber', 'subBubbles', 'sequence', 'minLen', 'maxLen', 'avgLen', 'traversals', 'pathTraversals'])]
+def get_outStats(GFAfile, siblingDict):
+	outStats=['\t'.join(['bubbleID', 'coreNumber', 'subBubbles', 'sequence', 'minLen', 'maxLen', 'avgLen', 'traversals', 'pathTraversals', 'siblings'])]
 	bubbleList=GFAfile.get_bubbleList()
 	for bubble in bubbleList:
 		bubbleID=bubble.get_bubbleID()
@@ -292,7 +301,10 @@ def get_outStats(GFAfile):
 		minLen, maxLen, avgLen=get_traversalLengths(bubble.get_traversalList(), GFAfile)
 		traversals=str(len(bubble.get_traversalList()))
 		pathTraversals=str(get_pathTraversalNumber(bubble.get_traversalList()))
-		outStats.append('\t'.join([bubbleID, coreNumber, subBubbles, sequence, str(minLen), str(maxLen), str(avgLen), traversals, pathTraversals]))
+		siblings='0'
+		if bubbleID in siblingDict:
+			siblings=str(len(list(siblingDict[bubbleID])))
+		outStats.append('\t'.join([bubbleID, coreNumber, subBubbles, sequence, str(minLen), str(maxLen), str(avgLen), traversals, pathTraversals, siblings]))
 	return outStats
 
 
@@ -334,6 +346,13 @@ def get_traversalLengths(traversalList, GFAfile):
 	avgLen=combLen/float(len(traversalList))		
 	return minLen, maxLen, avgLen
 
+
+def get_outSiblings(siblingDict):
+	outSiblings=['\t'.join(['bubbleID', 'siblings'])]
+	for bubble in siblingDict:
+		outSiblings.append('\t'.join([bubble, ';'.join(list(siblingDict[bubble]))]))
+	return outSiblings
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = "PanSV: Pan-genome SV detection algorithm by C. Kubica")
 	parser.add_argument("-g", "--gfa", help="gfa file", required=True)
@@ -353,9 +372,13 @@ if __name__ == "__main__":
 	GFAfile=get_pathTraversals(GFAfile, len(ecotypeDict))
 	print('Detecting PAV traversals...')
 	GFAfile=getPAVtraversals(GFAfile)
+	print('Searching for Siblings')
+	siblingDict=find_siblings(GFAfile.get_segmentDict())
 	print('SV detection done! Constructing output files......')
 	outFasta, outBED=build_output(GFAfile)
-	outStats=get_outStats(GFAfile)
+	outStats=get_outStats(GFAfile, siblingDict)
+	outSiblings=get_outSiblings(siblingDict)
 	write_file(outPath+'.fasta', '\n'.join(outFasta))
 	write_file(outPath+'.bed', '\n'.join(outBED))
 	write_file(outPath+'.stats', '\n'.join(outStats))
+	write_file(outPath+'.siblings', '\n'.join(outSiblings))
