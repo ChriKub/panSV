@@ -263,33 +263,6 @@ def reverseComplement(sequence):
 	return reverse
 
 
-#def is_novelTraversal(segmentDict, leftAnchor, rightAnchor, coreNumber):
-#	#checks if a traversal belongs to an existing bubble with a higher core number that has already been added to the data#
-#	novelTraversal=False
-#	if leftAnchor:
-#		if segmentDict[leftAnchor[:-1]].get_ecotypeNumber()==coreNumber:
-#			novelTraversal=True
-#	if rightAnchor:
-#		if segmentDict[rightAnchor[:-1]].get_ecotypeNumber()==coreNumber:
-#			novelTraversal=True
-#	return novelTraversal
-
-
-def get_bubbleID(bubbleNumber, coreNumber, ecotypeNumber):
-	#builds a new bubbleID for a top-order superbubble#
-	bubbleID=['0']*(ecotypeNumber-1)
-	bubbleID[ecotypeNumber-coreNumber]=str(bubbleNumber)
-	bubbleNumber+=1
-	return bubbleNumber, '.'.join(bubbleID)
-
-		
-def modify_bubbleID(bubble, coreNumber, ecotypeNumber):
-	#creates a bubbleID for subbubbles by setting the correct position of the ID string to the number of current subbubbles of the parent bubble +1#
-	bubbleID=bubble.get_bubbleID().split('.')
-	bubbleID[ecotypeNumber-coreNumber]=str(len(bubble.get_subBubbles())+1)
-	return '.'.join(bubbleID)
-
-
 def get_outStats(GFAfile, siblingDict):
 	outStats=['\t'.join(['bubbleID', 'coreNumber', 'subBubbles', 'sequence', 'minLen', 'maxLen', 'avgLen', 'traversals', 'pathTraversals', 'siblings'])]
 	bubbleList=GFAfile.get_bubbleList()
