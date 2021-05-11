@@ -39,32 +39,35 @@ def get_pathTraversals(GFAfile, ecotypeNumber):
 	pathDict=GFAfile.get_pathDict()
 	segmentDict=GFAfile.get_segmentDict()
 	for pathName in pathDict:
+		print("Detecting bubbles in path "+pathName)
 		openTraversalDict=initializeTraversalDict(ecotypeNumber)
 		closedTraversalDict=initializeTraversalDict(ecotypeNumber)
 		pathList=GFAfile.get_path(pathName).get_pathList()
 		leftAnchor=None
 		rightAnchor=None
 		pathPosition=0
+		i=0
 		if segmentDict[pathList[0][:-1]].get_ecotypeNumber()!=ecotypeNumber:
 			openTraversalDict[ecotypeNumber]=[None, None, 0, None, []]
-		for i in range(0,len(pathList)-1):
-			pathPosition+=segmentDict[pathList[i][:-1]].get_sequence_length()
-			if segmentDict[pathList[i][:-1]].get_ecotypeNumber()!=segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
-				if segmentDict[pathList[i][:-1]].get_ecotypeNumber()<segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
-					openTraversalDict=add_segment(openTraversalDict, pathList[i])
+		if len(pathList)>1:
+			for i in range(0,len(pathList)-1):
+				pathPosition+=segmentDict[pathList[i][:-1]].get_sequence_length()
+				if segmentDict[pathList[i][:-1]].get_ecotypeNumber()!=segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
+					if segmentDict[pathList[i][:-1]].get_ecotypeNumber()<segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
+						openTraversalDict=add_segment(openTraversalDict, pathList[i])
 					# close all bubbles of lower degree #
-					openTraversalDict, closedTraversalDict, GFAfile=closeTraversal(openTraversalDict, segmentDict[pathList[i+1][:-1]], pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName)
-				elif segmentDict[pathList[i][:-1]].get_ecotypeNumber()>segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
-					openTraversalDict=add_segment(openTraversalDict, pathList[i])
+						openTraversalDict, closedTraversalDict, GFAfile=closeTraversal(openTraversalDict, segmentDict[pathList[i+1][:-1]], pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName)
+					elif segmentDict[pathList[i][:-1]].get_ecotypeNumber()>segmentDict[pathList[i+1][:-1]].get_ecotypeNumber():
+						openTraversalDict=add_segment(openTraversalDict, pathList[i])
 					# open new bubble #
-					openTraversalDict[segmentDict[pathList[i][:-1]].get_ecotypeNumber()]=[segmentDict[pathList[i][:-1]], None, pathPosition, None, []]
-			else:
-				if i!=0:
-					# add node to all open bubbles #
-					openTraversalDict=add_segment(openTraversalDict, pathList[i])
-		if segmentDict[pathList[-1][:-1]].get_ecotypeNumber()!=ecotypeNumber:
-			openTraversalDict=add_segment(openTraversalDict, pathList[-1])
-		openTraversalDict, closedTraversalDict, GFAfile=closeTraversal(openTraversalDict, segmentDict[pathList[i+1][:-1]], pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName)
+						openTraversalDict[segmentDict[pathList[i][:-1]].get_ecotypeNumber()]=[segmentDict[pathList[i][:-1]], None, pathPosition, None, []]
+				else:
+					if i!=0:
+						# add node to all open bubbles #
+						openTraversalDict=add_segment(openTraversalDict, pathList[i])
+			if segmentDict[pathList[-1][:-1]].get_ecotypeNumber()!=ecotypeNumber:
+				openTraversalDict=add_segment(openTraversalDict, pathList[-1])
+			openTraversalDict, closedTraversalDict, GFAfile=closeTraversal(openTraversalDict, segmentDict[pathList[i+1][:-1]], pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName)
 	# add unique IDs to bubbles #
 	GFAfile=nameBubbles(GFAfile, ecotypeNumber)
 	return GFAfile
