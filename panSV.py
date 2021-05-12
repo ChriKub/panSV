@@ -39,6 +39,7 @@ def get_pathTraversals(GFAfile, ecotypeNumber):
 	pathDict=GFAfile.get_pathDict()
 	segmentDict=GFAfile.get_segmentDict()
 	for pathName in pathDict:
+		print(pathName)
 		print("Detecting bubbles in path "+pathName)
 		openTraversalDict=initializeTraversalDict(ecotypeNumber)
 		closedTraversalDict=initializeTraversalDict(ecotypeNumber)
@@ -129,7 +130,8 @@ def create_bubbles(closedTraversalDict, GFAfile, pathName, ecotypeNumber):
 				# create new bubble and add traversal#
 				bubble=GFAfile.add_bubble(None, traversal[0], traversal[1], traversal[4], i, parent)
 				bubble.add_traversal(pathName, traversal[4], traversal[2], traversal[3])
-			parentList.append(bubble)
+			if i==ecotypeNumber:
+				parentList.append(bubble)
 		closedTraversalDict[i]=[]
 	return closedTraversalDict, GFAfile
 
