@@ -39,7 +39,6 @@ def get_pathTraversals(GFAfile, ecotypeNumber):
 	pathDict=GFAfile.get_pathDict()
 	segmentDict=GFAfile.get_segmentDict()
 	for pathName in pathDict:
-		print(pathName)
 		print("Detecting bubbles in path "+pathName)
 		openTraversalDict=initializeTraversalDict(ecotypeNumber)
 		closedTraversalDict=initializeTraversalDict(ecotypeNumber)
@@ -68,7 +67,7 @@ def get_pathTraversals(GFAfile, ecotypeNumber):
 						openTraversalDict=add_segment(openTraversalDict, pathList[i])
 			if segmentDict[pathList[-1][:-1]].get_ecotypeNumber()!=ecotypeNumber:
 				openTraversalDict=add_segment(openTraversalDict, pathList[-1])
-			openTraversalDict, closedTraversalDict, GFAfile=closeTraversal(openTraversalDict, segmentDict[pathList[i+1][:-1]], pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName)
+			openTraversalDict, closedTraversalDict, GFAfile=closeTraversal(openTraversalDict, segmentDict[pathList[i+1][:-1]], pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName, True)
 	# add unique IDs to bubbles #
 	GFAfile=nameBubbles(GFAfile, ecotypeNumber)
 	return GFAfile
@@ -90,14 +89,19 @@ def add_segment(traversalDict, segment):
 	return traversalDict
 
 
-def closeTraversal(traversalDict, segmentObject, pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName):
+def closeTraversal(traversalDict, segmentObject, pathPosition, closedTraversalDict, ecotypeNumber, GFAfile, pathName, terminalBubble=False):
 	for coreLevel in traversalDict:
-		if coreLevel<=segmentObject.get_ecotypeNumber():
+		if coreLevel<=segmentObject.get_ecotypeNumber() or terminalBubble:
 			if traversalDict[coreLevel]:
 				traversalDict[coreLevel][1]=segmentObject
+				if terminalBubble:
+					traversalDict[coreLevel][1]=None
 				traversalDict[coreLevel][3]=pathPosition
-				closedTraversalDict[coreLevel].append(traversalDict[coreLevel])
-				if segmentObject.get_ecotypeNumber()==ecotypeNumber and coreLevel==ecotypeNumber:
+				if not terminalBubble:
+					closedTraversalDict[coreLevel].append(traversalDict[coreLevel])
+				else:
+					closedTraversalDict[ecotypeNumber].append(traversalDict[coreLevel])
+				if segmentObject.get_ecotypeNumber()==ecotypeNumber and coreLevel==ecotypeNumber or terminalBubble:
 					closedTraversalDict, GFAfile=create_bubbles(closedTraversalDict, GFAfile, pathName, ecotypeNumber)
 				traversalDict[coreLevel]=[]
 			else:
@@ -141,6 +145,19 @@ def bubble_exists(leftAnchor, rightAnchor):
 	if leftAnchor and rightAnchor:
 		if set(leftAnchor.get_leftAnchor()).intersection(rightAnchor.get_rightAnchor()):
 			bubble=list(set(leftAnchor.get_leftAnchor()).intersection(rightAnchor.get_rightAnchor()))[0]
+	elif not leftAnchor:
+		for anchoredBubble in rightAnchor.get_rightAnchor():
+			if not anchoredBubble.get_leftAnchor():
+				bubble=anchoredBubble
+				break
+	elif not rightAnchor:
+		if leftAnchor.get_leftAnchor():
+			for anchoredBubble in leftAnchor.get_leftAnchor():
+				if not anchoredBubble.get_rightAnchor():
+					bubble=anchoredBubble
+					break
+	else:
+		print('unanchored Bubble')
 	return bubble
 
 
