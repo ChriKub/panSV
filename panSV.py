@@ -146,16 +146,18 @@ def bubble_exists(leftAnchor, rightAnchor):
 		if set(leftAnchor.get_leftAnchor()).intersection(rightAnchor.get_rightAnchor()):
 			bubble=list(set(leftAnchor.get_leftAnchor()).intersection(rightAnchor.get_rightAnchor()))[0]
 	elif not leftAnchor:
-		for anchoredBubble in rightAnchor.get_rightAnchor():
-			if not anchoredBubble.get_leftAnchor():
-				bubble=anchoredBubble
-				break
-	elif not rightAnchor:
-		if leftAnchor.get_leftAnchor():
-			for anchoredBubble in leftAnchor.get_leftAnchor():
-				if not anchoredBubble.get_rightAnchor():
+		if rightAnchor:
+			for anchoredBubble in rightAnchor.get_rightAnchor():
+				if not anchoredBubble.get_leftAnchor():
 					bubble=anchoredBubble
 					break
+	elif not rightAnchor:
+		if leftAnchor:
+			if leftAnchor.get_leftAnchor():
+				for anchoredBubble in leftAnchor.get_leftAnchor():
+					if not anchoredBubble.get_rightAnchor():
+						bubble=anchoredBubble
+						break
 	else:
 		print('unanchored Bubble')
 	return bubble
@@ -250,12 +252,15 @@ def build_output(GFAfile):
 			else:
 				traversalSequence=traversal.get_segmentList()
 			for path in traversal.get_pathList():
-				outBED.append('\t'.join([path[0], str(path[1]), str(path[2]), bubble.get_bubbleID(), str(bubble.get_coreNumber())]))
-				if isinstance(traversal.get_segmentList(), list) or isinstance(traversal.get_segmentList(), set):
-					outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+','.join(traversal.get_segmentList())+','+rightAnchor)
-				else:
-					outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+rightAnchor)
-				outFasta.append(traversalSequence)
+				try:
+					outBED.append('\t'.join([path[0], str(path[1]), str(path[2]), bubble.get_bubbleID(), str(bubble.get_coreNumber())]))
+					if isinstance(traversal.get_segmentList(), list) or isinstance(traversal.get_segmentList(), set):
+						outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+','.join(traversal.get_segmentList())+','+rightAnchor)
+					else:
+						outFasta.append('>'+bubble.get_bubbleID()+'-'+path[0]+'|'+str(path[1])+':'+str(path[2])+'|'+leftAnchor+','+rightAnchor)
+					outFasta.append(traversalSequence)
+				except:
+					pass
 	return outFasta, outBED
 
 
@@ -299,7 +304,10 @@ def get_outStats(GFAfile, siblingDict):
 		siblings='0'
 		if bubbleID in siblingDict:
 			siblings=str(len(list(siblingDict[bubbleID])))
-		outStats.append('\t'.join([bubbleID, coreNumber, subBubbles, sequence, str(minLen), str(maxLen), str(avgLen), traversals, pathTraversals, siblings]))
+		try:
+			outStats.append('\t'.join([bubbleID, coreNumber, subBubbles, sequence, str(minLen), str(maxLen), str(avgLen), traversals, pathTraversals, siblings]))
+		except:
+			pass
 	return outStats
 
 
@@ -348,6 +356,30 @@ def get_outSiblings(siblingDict):
 		outSiblings.append('\t'.join([bubble, ';'.join(list(siblingDict[bubble]))]))
 	return outSiblings
 
+
+def get_siblingPaf(siblingDict, outBED):
+	siblingPaf=[]
+	bedDict=buidBEDdict(outBED)
+	for bubble in siblingDict:
+		for sibling in siblingDict[bubble]:
+			for bubbleTraversal in bedDict[bubble]:
+				bubbleLine='\t'.join([bubbleTraversal[0], bubbleTraversal[1], bubbleTraversal[2]])
+				for siblingTraversal in bedDict[sibling]:
+					siblingLine='\t'.join([siblingTraversal[0], siblingTraversal[1], siblingTraversal[2]])
+					if bubbleLine!=siblingLine:
+						siblingPaf.append('\t'.join(sorted([bubbleLine, siblingLine])))
+	return siblingPaf
+
+
+def buidBEDdict(outBED):
+	bedDict={}
+	for entry in outBED:
+		if entry.split('\t')[3] in bedDict:
+			bedDict[entry.split('\t')[3]].append([entry.split('\t')[0], entry.split('\t')[1], entry.split('\t')[2]])
+		else:
+			bedDict[entry.split('\t')[3]]=[[entry.split('\t')[0], entry.split('\t')[1], entry.split('\t')[2]]]
+	return bedDict
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description = "PanSV: Pan-genome SV detection algorithm by C. Kubica")
 	parser.add_argument("-g", "--gfa", help="gfa file", required=True)
@@ -373,7 +405,9 @@ if __name__ == "__main__":
 	outFasta, outBED=build_output(GFAfile)
 	outStats=get_outStats(GFAfile, siblingDict)
 	outSiblings=get_outSiblings(siblingDict)
+	siblingPaf=get_siblingPaf(siblingDict, outBED)
 	write_file(outPath+'.fasta', '\n'.join(outFasta))
 	write_file(outPath+'.bed', '\n'.join(outBED))
 	write_file(outPath+'.stats', '\n'.join(outStats))
 	write_file(outPath+'.siblings', '\n'.join(outSiblings))
+	write_file(outPath+'_siblings.paf', '\n'.join(siblingPaf))
